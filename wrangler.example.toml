@@ -1,0 +1,10 @@
+name = "image-classification"
+main = "src/index.ts"
+compatibility_date = "2024-04-14"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[vars]
+JWT_SECRET=""

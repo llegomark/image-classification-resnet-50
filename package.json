@@ -1,0 +1,25 @@
+{
+	"name": "image-classification-resnet-50",
+	"version": "1.0.0",
+	"description": "This project demonstrates how to perform image classification using the Microsoft Vision Model ResNet-50 on Cloudflare Workers with the Hono framework and Cloudflare AI.",
+	"main": "src/index.ts",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy --minify src/index.ts",
+		"dev": "wrangler dev src/index.ts"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/llegomark/image-classification-resnet-50.git"
+	},
+	"author": "Mark Anthony Llego",
+	"license": "MIT",
+	"dependencies": {
+		"@hono/zod-validator": "^0.2.1",
+		"hono": "^4.2.4"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20240405.0",
+		"wrangler": "^3.50.0"
+	}
+}
