@@ -64,12 +64,8 @@ const ImageSchema = z
 
 const ImagesSchema = z.array(ImageSchema);
 
-app.post('/api/classify/:model', authMiddleware, zValidator('json', ImagesSchema), async (c) => {
+app.post('/api/classify/:model?', authMiddleware, zValidator('json', ImagesSchema), async (c) => {
 	const model = c.req.param('model');
-	if (model !== 'llama' && model !== 'gemma') {
-		return c.json({ error: 'Invalid model. Available models: llama, gemma' }, 400);
-	}
-
 	const images = c.req.valid('json');
 	const promises = images.map(async (image) => {
 		let blob: ArrayBuffer;
