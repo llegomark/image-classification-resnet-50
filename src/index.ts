@@ -64,12 +64,15 @@ const ImageSchema = z
 
 const ImagesSchema = z.array(ImageSchema);
 
-app.post('/api/classify', authMiddleware, zValidator('json', ImagesSchema), async (c) => {
-	const images = c.req.valid('json');
+app.post('/api/classify/:model', authMiddleware, zValidator('json', ImagesSchema), async (c) => {
+	const model = c.req.param('model');
+	if (model !== 'llama' && model !== 'gemma') {
+		return c.json({ error: 'Invalid model. Available models: llama, gemma' }, 400);
+	}
 
+	const images = c.req.valid('json');
 	const promises = images.map(async (image) => {
 		let blob: ArrayBuffer;
-
 		try {
 			if (image.url) {
 				const imageResponse = await fetch(image.url);
@@ -87,19 +90,31 @@ app.post('/api/classify', authMiddleware, zValidator('json', ImagesSchema), asyn
 
 			const classificationResponse = await ai.run('@cf/microsoft/resnet-50', inputs);
 
-			const messages = [
-				{
-					role: 'system',
-					content: 'You are an AI assistant that analyzes image classification results.',
-				},
-				{
-					role: 'user',
-					content: `Please analyze the following image classification JSON output and provide a summary:\n\n${JSON.stringify(
-						classificationResponse
-					)}`,
-				},
-			];
-			const analysisResponse = await ai.run('@cf/meta/llama-2-7b-chat-int8', { messages });
+			let analysisResponse;
+			if (model === 'llama') {
+				const messages = [
+					{
+						role: 'system',
+						content: 'You are an AI assistant that analyzes image classification results.',
+					},
+					{
+						role: 'user',
+						content: `Please analyze the following image classification JSON output and provide a summary:\n\n${JSON.stringify(
+							classificationResponse
+						)}`,
+					},
+				];
+				analysisResponse = await ai.run('@cf/meta/llama-2-7b-chat-int8', { messages, max_tokens: 256 });
+			} else if (model === 'gemma') {
+				const prompt = `Analyze the following image classification JSON output and provide a summary:\n\n${JSON.stringify(
+					classificationResponse
+				)}`;
+				analysisResponse = await ai.run('@cf/google/gemma-7b-it-lora', {
+					prompt,
+					max_tokens: 256,
+					raw: true,
+				});
+			}
 
 			return {
 				classification: classificationResponse,
