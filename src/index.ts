@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
-// @ts-ignore
-import { Ai } from './vendor/@cloudflare/ai.js';
+import { cors } from 'hono/cors';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { cors } from 'hono/cors';
 import { jwt } from 'hono/jwt';
 import { csrf } from 'hono/csrf';
 import { MiddlewareHandler } from 'hono';
+// @ts-ignore
+import { Ai } from './vendor/@cloudflare/ai.js';
 
 type Bindings = {
 	AI: string;
@@ -30,7 +30,6 @@ const authMiddleware: MiddlewareHandler = async (c, next) => {
 };
 
 const acceptedFormats = ['jpg', 'jpeg', 'webp', 'png', 'gif'];
-
 const ImageSchema = z
 	.object({
 		url: z
@@ -67,8 +66,10 @@ const ImagesSchema = z.array(ImageSchema);
 
 app.post('/api/classify', authMiddleware, zValidator('json', ImagesSchema), async (c) => {
 	const images = c.req.valid('json');
+
 	const promises = images.map(async (image) => {
 		let blob: ArrayBuffer;
+
 		try {
 			if (image.url) {
 				const imageResponse = await fetch(image.url);
@@ -78,12 +79,32 @@ app.post('/api/classify', authMiddleware, zValidator('json', ImagesSchema), asyn
 			} else {
 				throw new Error('Invalid image');
 			}
+
 			const ai = new Ai(c.env.AI);
 			const inputs = {
 				image: [...new Uint8Array(blob)],
 			};
-			const response = await ai.run('@cf/microsoft/resnet-50', inputs);
-			return response;
+
+			const classificationResponse = await ai.run('@cf/microsoft/resnet-50', inputs);
+
+			const messages = [
+				{
+					role: 'system',
+					content: 'You are an AI assistant that analyzes image classification results.',
+				},
+				{
+					role: 'user',
+					content: `Please analyze the following image classification JSON output and provide a summary:\n\n${JSON.stringify(
+						classificationResponse
+					)}`,
+				},
+			];
+			const analysisResponse = await ai.run('@cf/meta/llama-2-7b-chat-int8', { messages });
+
+			return {
+				classification: classificationResponse,
+				analysis: analysisResponse,
+			};
 		} catch (error: unknown) {
 			if (error instanceof Error) {
 				return {
